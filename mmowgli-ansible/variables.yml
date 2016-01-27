@@ -1,0 +1,67 @@
+---
+# Base Variables
+GAME_NAME: mmowgli
+SYSADMIN_EMAIL: someone@email.foo
+MMOWGLI_SOURCE: "https://svn.code.sf.net/p/mmowgli/code/application/trunk"
+MMOWGLI_REVISION: "5116"
+
+# Repository Information
+EPEL_REPO_URL: https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm
+REMI_REPO_URL: http://rpms.remirepo.net/enterprise/remi-release-6.rpm
+
+# Network Time Protocol Server
+NTP_SERVER: time.nps.edu
+
+# Need consistent UID and GID for shared filesystem
+MMOWGLI_USER: mmowgli
+MMOWGLI_UID: 503
+MMOWGLI_GUID: 503
+
+# Samba variables
+SMB_USER: mmowgli
+SMB_PASSWORD: "{{ lookup('password', 'credentials/mmowgli/smb_password') }}"
+# UDP ports
+SMB_PORT1: 137
+SMB_PORT2: 138
+# TCP port
+SMB_PORT3: 139
+# The directory we share with tomcats and the front-end web server
+SMB_EXPORT_DIRECTORY: /exports/mmowgli
+
+# Java-related variables
+JDK_URL: http://download.oracle.com/otn-pub/java/jdk/8u65-b17/jdk-8u65-linux-x64.tar.gz
+JDK_VERSION: jdk1.8.0_65
+JCE_URL: http://download.oracle.com/otn-pub/java/jce/8/jce_policy-8.zip
+JVM_ROUTE: "{{ ansible_hostname }}"
+
+# Zookeeper Variables
+ZOOKEEPER_URL: http://apache.mirrorcatalogs.com/zookeeper/zookeeper-3.4.7/zookeeper-3.4.7.tar.gz
+ZOOKEEPER_VERSION: zookeeper-3.4.7
+ZOOKEEPER_PORT: 2181
+ZOOKEEPER_UID: 510
+ZOOKEEPER_GUID: 510
+
+# ActiveMQ Variables
+ACTIVE_MQ_URL: http://apache.cs.utah.edu/activemq/5.13.0/apache-activemq-5.13.0-bin.tar.gz
+ACTIVE_MQ_VERSION: apache-activemq-5.13.0
+ACTIVE_MQ_MANAGEMENT_PORT: 8161
+ACTIVE_MQ_DATA_PORT: 61616
+
+# Mysql passwords. MYSQL_USER and MYSQL_PASSWORD are the uname and pw
+# used by the application to contact the database. MYSQL_ROOT_PASSWORD
+# is the root password for mysql.
+MYSQL_USER: mmowgli
+MYSQL_PASSWORD: "{{ lookup('password', 'credentials/mmowgli/mysql_password') }}"
+MYSQL_ROOT_PASSWORD: "{{ lookup('password', 'credentials/mmowgli/mysql_root_password') }}"
+MYSQL_PORT: 3306
+
+# Tomcat Variables
+TOMCAT_URL: http://apache.mesi.com.ar/tomcat/tomcat-7/v7.0.67/bin/apache-tomcat-7.0.67.tar.gz
+TOMCAT_VERSION: apache-tomcat-7.0.67
+AJP_PORT: 8009
+TOMCAT_UID: 501
+TOMCAT_GUID: 501
+
+# HTTPD Variables
+HTTP_PORT: 80
+HTTPS_PORT: 443

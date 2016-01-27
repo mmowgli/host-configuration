@@ -1,0 +1,9 @@
+[web]
+mmowgli
+
+[dbfile]
+mmowgliserver
+
+[tomcat]
+mmowgli-tomcat1
+mmowgli-tomcat2

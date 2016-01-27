@@ -1,0 +1,130 @@
+## YAML Template.
+---
+- name: mysql client libraries
+  yum: pkg={{ item }} state=installed enablerepo=remi
+  with_items:
+    - mysql
+    - mysql-devel
+    - mysql-libs
+    - MySQL-python
+
+- name: smb credentials file
+  template: src=smb-credentials.txt.jn2 dest=/etc/smb-credentials.txt
+
+# Tomcat should have a consistent uid and gid across all hosts for the shared filesystem
+- name: create tomcat group
+  group: state=present name=tomcat gid={{ TOMCAT_GUID }}
+
+- name: create tomcat user
+  user: name=tomcat comment="Tomcat user" createhome=yes state=present group=tomcat shell=/bin/bash uid={{ TOMCAT_UID }}
+
+- name: ensure .bashrc present
+  copy: src=bashrc dest=/home/tomcat/.bashrc owner=tomcat group=tomcat
+
+- name: ensure .bash_profile present, has path for java
+  copy: src=bash_profile dest=/home/tomcat/.bash_profile owner=tomcat group=tomcat
+
+
+- name: Directories for landing various java-related things
+  file: path={{ item }} owner=root group=root mode=0755 state=directory
+  with_items:
+      - /usr/java
+      - /usr/java/ant
+
+- name: get jdk
+  get_url:
+    url: "{{ JDK_URL }}"
+    headers: "Cookie: oraclelicense=accept-securebackup-cookie"
+    validate_certs: no
+    dest: /tmp/{{ JDK_VERSION }}.tar.gz
+    checksum: md5:196880a42c45ec9ab2f00868d69619c0
+
+- name: install JDK
+  unarchive: 
+    src     : /tmp/{{ JDK_VERSION }}.tar.gz
+    dest    : /usr/java
+    copy    : no
+    creates : "/usr/java/{{ JDK_VERSION }}"
+
+- name: symlinks for jdk
+  file: 
+    state : link
+    src   : "/usr/java/{{ JDK_VERSION }}"
+    dest  : "/usr/java/{{ item }}"
+  with_items:
+    - default
+    - latest
+
+- name: get java cryptography extensions
+  get_url:
+    url: "{{ JCE_URL }}"
+    headers: "Cookie: oraclelicense=accept-securebackup-cookie"
+    validate_certs: no
+    dest: /tmp/jce.zip
+    checksum: md5:b3c7031bc65c28c2340302065e7d00d3
+
+- name: create dir to hold jce
+  file: state=directory dest=/tmp/jce
+
+- name: unzip java cryptography extensions
+  unarchive: copy=no src=/tmp/jce.zip dest=/tmp/jce creates=/tmp/jce
+
+- name: Copy jce jar files to destination
+  command: cp /tmp/jce/UnlimitedJCEPolicyJDK8/{{ item }} /usr/java/default/jre/lib/security/{{ item }}
+  args:
+    creates: /usr/java/default/jre/lib/security/{{ item }}
+  with_items:
+    - local_policy.jar
+    - US_export_policy.jar
+
+- name: set permissions on java directory
+  file: path=/usr/java/{{ JDK_VERSION }} owner=root group=root state=directory recurse=yes
+
+- name: Fetch and unpack tomcat
+  unarchive: 
+    copy: no
+    src: "{{ TOMCAT_URL }}"
+    dest: /usr/java
+    creates: "/usr/java/{{ TOMCAT_VERSION }}"
+
+- name: symlink for tomcat
+  file: 
+    state : link
+    src   : "/usr/java/{{ TOMCAT_VERSION }}"
+    dest  : "/usr/java/tomcat"
+
+- name: tomcat server.xml file with jvmRoute
+  template: src=server.xml.jn2 dest=/usr/java/{{ TOMCAT_VERSION }}/conf/server.xml
+
+- name: set permissions on tomcat
+  file: path=/usr/java/{{ TOMCAT_VERSION }} state=directory recurse=yes owner=tomcat group=tomcat
+
+- name: install init script
+  template: src=tomcat.jn2 dest=/etc/init.d/tomcat mode=755 owner=root group=root
+
+- name: start tomcat
+  service: state=started name=tomcat enabled=yes
+
+- name: open tomcat AJP port through firewall
+  lineinfile: 
+    dest        : /etc/ferm/ferm.conf
+    line        : 'proto tcp dport ({{ AJP_PORT }}) ACCEPT;'
+    insertafter : '# Ansible specified rules.'
+  notify: run ferm
+
+- name: mount point for smb
+  file: path=/mmowgli/shared/images state=directory mode=0755
+
+- name: mount shared filesystem
+  mount: 
+    name   : /mmowgli/shared/images
+    fstype : cifs
+    src    : //{{ hostvars['mmowgliserver']['ansible_eth0']['ipv4']['address'] }}/images
+    state  : mounted
+    opts   : "rw,username={{ SMB_USER }},password={{ SMB_PASSWORD }}"
+
+- name: add the war file
+  command: cp /mmowgli/shared/images/{{ GAME_NAME }}/mmowgli.war /usr/java/tomcat/webapps/
+  notify: restart tomcat
+
+

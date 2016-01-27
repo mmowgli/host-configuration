@@ -1,0 +1,113 @@
+# Mmowgli servers base configuration
+#
+---
+# create hosts file
+# Idempotent way to build a /etc/hosts file with Ansible using your Ansible hosts inventory for a source.
+# Will include all hosts the playbook is run on.
+- name: "Build hosts file"
+  lineinfile: 
+    dest   : /etc/hosts
+    regexp : '.*{{ item }}$'
+    line   : "{{ hostvars[item]['ansible_eth0']['ipv4']['address'] }} {{item}}"
+    state  : present
+  with_items: groups.all
+
+# Install epel and remi repositories. Remi is needed for more
+# recent versions of mysql.
+- name: install epel and remi repos
+  yum: name={{ item }} state=present
+  with_items:
+    - "{{EPEL_REPO_URL}}"
+    - "{{REMI_REPO_URL}}"
+
+# Install base packages, those that should be present on all hosts
+# ferm is a tool for managing iptables, libselinux for selinux
+- name: install base yum packages
+  yum: pkg={{ item }} state=installed
+  with_items:
+      - clamav
+      - fail2ban
+      - samba
+      - samba-client
+      - samba-common
+      - ntp
+      - libselinux-python
+      - cifs-utils
+      - ferm
+      - unzip
+      - subversion
+
+- name: install yum updates
+  yum: name=* state=latest
+
+- name: Turn off selinux (it is incompatible with Mmowgli)
+  selinux: state=disabled
+
+- name: permanently disable selinux
+  tags:
+    - naemon
+    - naemon_only  
+  lineinfile: 
+    dest   : /etc/selinux/config
+    regexp : ^SELINUX=
+    line   : SELINUX=disabled
+
+- name: Directories for landing various java-related things
+  file: path=/usr/java owner=root group=root mode=0755 state=directory
+
+- name: Configure NTP client
+  template: src=ntp.conf.jn2 dest=/etc/ntp.conf
+
+- name: start NTP client service
+  service: name=ntpd state=started
+
+# Ensure that a standard user is present on all hosts. This is needed for SMB shares.
+# Should have a consistent uid and gid across all hosts for the shared filesystem
+- name: create mmowlgi group
+  group: 
+    state : present
+    name  : "{{ MMOWGLI_USER }}"
+    gid   : "{{ MMOWGLI_GUID }}"
+
+# TODO: security audit, does this user need a HOME?
+- name: create mmowgli user
+  user: 
+    name       : "{{ MMOWGLI_USER }}"
+    comment    : "mmowgli user"
+    createhome : yes
+    state      : present
+    group      : "{{ MMOWGLI_USER }}"
+    shell      : /bin/bash
+    uid        : "{{ MMOWGLI_UID }}"
+
+- name: ensure .bashrc and .bash_profile present (has path for java)
+  copy: 
+    src   : "{{ item }}"
+    dest  : "/home/{{ MMOWGLI_USER }}/.{{ item }}"
+    owner : "{{ MMOWGLI_USER }}"
+    group : "{{ MMOWGLI_USER }}"
+  with_items: 
+    - bash_profile
+    - bashrc
+
+- name: Mount point for mmowgli shared smb filesystem
+  file: 
+    path  : /mmowgli/shared/images
+    owner : "{{ MMOWGLI_USER }}"
+    group : "{{ MMOWGLI_USER }}"
+    mode  : 0775
+    state : directory
+
+- name: ensure iptables started
+  service: name=iptables state=started enabled=yes
+
+- name: add /etc/ferm directory
+  file: path=/etc/ferm mode=0700 state=directory
+
+- name: add ferm conf file (for managing iptables)
+  template: 
+    src   : ferm.conf.jn2
+    dest  : /etc/ferm/ferm.conf
+    owner : root
+    group : root
+

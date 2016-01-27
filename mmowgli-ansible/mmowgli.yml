@@ -1,0 +1,43 @@
+# Mmowgli cluster deployment playbook
+# NOTE: use the mmowgli hosts inventory
+# NOTE: These playbooks require Ansible 2.0+
+#
+- name: Perform the base configuration for each of the servers
+  hosts: all
+  user: root
+  roles: 
+    - base
+  vars_files:
+    - variables.yml
+  tags: 
+    - base
+
+- name: Configure the database/fileserver 
+  hosts: dbfile
+  user: root
+  roles: 
+    - dbfile
+  vars_files:
+    - variables.yml
+  tags: 
+    - dbfile
+
+- name: Configure the tomcat server(s)
+  hosts: tomcat
+  user: root
+  roles: 
+    - tomcat
+  vars_files:
+    - variables.yml
+  tags: 
+    - tomcat
+
+- name: Configure the web server
+  hosts: web
+  user: root
+  roles: 
+    - web
+  vars_files:
+    - variables.yml
+  tags: 
+    - web

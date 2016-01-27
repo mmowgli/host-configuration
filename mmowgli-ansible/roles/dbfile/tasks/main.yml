@@ -1,0 +1,247 @@
+## Ansible file for configuring the mmowgli file server, database server, etc.
+## There should be one of these.
+---
+# TODO: Check to see if already downloaded, if so, don't download.
+- name: get jdk
+  get_url:
+    url: "{{ JDK_URL }}"
+    headers: "Cookie: oraclelicense=accept-securebackup-cookie"
+    validate_certs: no
+    dest: /tmp/{{ JDK_VERSION }}.tar.gz
+    checksum: md5:196880a42c45ec9ab2f00868d69619c0
+
+- name: install JDK
+  unarchive: 
+    src     : /tmp/{{ JDK_VERSION }}.tar.gz
+    dest    : /usr/java
+    copy    : no
+    creates : "/usr/java/{{ JDK_VERSION }}"
+
+- name: symlinks for jdk
+  file: 
+    state : link
+    src   : "/usr/java/{{ JDK_VERSION }}"
+    dest  : "/usr/java/{{ item }}"
+  with_items:
+    - default
+    - latest
+
+- name: get java cryptography extensions
+  get_url:
+    url: "{{ JCE_URL }}"
+    headers: "Cookie: oraclelicense=accept-securebackup-cookie"
+    validate_certs: no
+    dest: /tmp/jce.zip
+    checksum: md5:b3c7031bc65c28c2340302065e7d00d3
+
+- name: create dir to hold jce
+  file: state=directory dest=/tmp/jce
+
+- name: unzip java cryptography extensions
+  unarchive: copy=no src=/tmp/jce.zip dest=/tmp/jce creates=/tmp/jce
+
+- name: Copy jce jar files to destination
+  command: cp /tmp/jce/UnlimitedJCEPolicyJDK8/{{ item }} /usr/java/default/jre/lib/security/{{ item }}
+  args:
+    creates: /usr/java/default/jre/lib/security/{{ item }}
+  with_items:
+    - local_policy.jar
+    - US_export_policy.jar
+
+- name: set permissions on java directory
+  file: 
+    path    : "/usr/java/{{ JDK_VERSION }}"
+    owner   : root
+    group   : root
+    state   : directory
+    recurse : yes
+
+# Install zookeeper, a piece of software that can select a lead tomcat from the tomcat
+# cluster.
+- name: create zookeepr group
+  group: state=present name=zookeeper gid={{ ZOOKEEPER_GUID }}
+
+- name: create zookeeper user
+  user: name=zookeeper comment="Zookeeper user" createhome=yes state=present group=zookeeper shell=/sbin/nologin uid={{ ZOOKEEPER_UID }}
+
+- name: ensure .bashrc present
+  copy: src=bashrc dest=/home/zookeeper/.bashrc owner=zookeeper group=zookeeper
+
+- name: ensure .bash_profile present, has path for java
+  copy: src=bash_profile dest=/home/zookeeper/.bash_profile owner=zookeeper group=zookeeper
+
+# - name: get zookeeper
+#   command: "wget {{ ZOOKEEPER_URL }} -O /tmp/zookeeper.tar.gz"
+#   args:
+#     creates: /tmp/zookeeper.tar.gz
+
+- name: unarchive zookeeper
+  unarchive: 
+    copy: no
+    src: "{{ ZOOKEEPER_URL }}"
+    dest: /usr/java
+    creates: "/usr/java/{{ ZOOKEEPER_VERSION }}"
+
+- name: copy zookeeper init.d file
+  template: src=zookeeper.jn2 dest=/etc/init.d/zookeeper
+
+- name: zookeeper init file permisions
+  file: path=/etc/init.d/zookeeper owner=root group=root mode=755
+
+- name: zookeeper config file
+  template: src=zoo.cfg.jn2 dest=/usr/java/{{ ZOOKEEPER_VERSION }}/conf/zoo.cfg mode=0644
+
+- name: set permissions on zookeper directory
+  file: path=/usr/java/{{ ZOOKEEPER_VERSION }} owner=zookeeper group=zookeeper state=directory recurse=yes
+
+- name: start zookeeper
+  service: state=started name=zookeeper enabled=yes
+
+- name: open zookeeper port through firewall
+  lineinfile: 
+    dest: /etc/ferm/ferm.conf
+    line: 'proto tcp dport ({{ ZOOKEEPER_PORT }}) ACCEPT;'
+    insertafter: '# Ansible specified rules.'
+  notify: run ferm
+
+# Install MySQL
+- name: Install mysql
+  yum: pkg={{ item }} state=installed enablerepo=remi
+  with_items:
+      - mysql
+      - mysql-devel
+      - mysql-server
+      - mysql-libs
+      - MySQL-python
+
+- name: mysql service startup
+  service: name=mysqld state=started enabled=true
+
+- name: copy the .my.cnf file with root password credentials (otherwise root can't do client ops after creating root acct)
+  template: src=root.my.cnf.jn2 dest=/root/.my.cnf owner=root mode=0600
+
+# You'll probably want greater security here
+- name: set mysql root password
+  mysql_user: 
+    name     : root
+    host     : "{{ item }}"
+    password : "{{ MYSQL_ROOT_PASSWORD }}"
+    priv     : "*.*:ALL,GRANT"
+  with_items:
+      - ::1
+      - localhost
+
+- name: create a mysql database for the game. Must have the same name as the game.
+  mysql_db: 
+    name           : "{{ GAME_NAME }}"
+    state          : present
+
+- name: create mmowgli application user for each tomcat and grant them privs on the database
+  mysql_user: 
+    name           : "{{ MYSQL_USER }}"
+    host           : "{{ item }}"
+    password       : "{{ MYSQL_PASSWORD }}"
+    priv           : "{{ GAME_NAME }}.*:ALL"
+    state          : present
+  with_items:
+      groups['tomcats']
+
+- name: open mysql port through firewall
+  lineinfile: 
+    dest        : /etc/ferm/ferm.conf
+    line        : 'proto tcp dport ({{ MYSQL_PORT }}) ACCEPT;'
+    insertafter : '# Ansible specified rules.'
+  notify: run ferm
+
+# Install apache-mq. 
+
+- name: unarchive activemq
+  unarchive: 
+    copy: no
+    src: "{{ ACTIVE_MQ_URL }}"
+    dest: /usr/java
+    creates: "/usr/java/{{ ACTIVE_MQ_VERSION }}"
+
+- name: place the init.d file
+  template: src=activemq.jn2 dest=/etc/init.d/activemq owner=root group=root mode=0755
+
+- name: start activemq service
+  service: name=activemq state=started enabled=yes
+
+- name: open activemq data port through firewall
+  lineinfile: 
+    dest: /etc/ferm/ferm.conf
+    line: 'proto tcp dport ({{ item }}) ACCEPT;'
+    insertafter: '# Ansible specified rules.'
+  with_items:
+    - "{{ ACTIVE_MQ_DATA_PORT }}"
+    - "{{ ACTIVE_MQ_MANAGEMENT_PORT }}"
+  notify: run ferm
+
+# Install samba file server
+
+- name: ensure directory to share is present
+  file: path={{ SMB_EXPORT_DIRECTORY }} state=directory mode=0755 owner={{ SMB_USER }} group={{ SMB_USER }}
+
+# Note that "shell" is used here instead of "command". The later has problems
+# handling piping, metacharacters, and the other usual unix command line stuff.
+# So this basically runs the line in bash.
+- name: SMB authentication database using tdbsam
+  shell: "printf '{{ SMB_PASSWORD }}\n{{ SMB_PASSWORD }}\n' | smbpasswd -a -s {{ SMB_USER }}"
+
+- name: smb credentials file
+  template: src=smb-credentials.txt.jn2 dest=/etc/smb-credentials.txt
+
+# The security on the smb file is weak in the interests of generality.
+- name: SMB server configuration file
+  template: src=smb.conf.jn2 dest=/etc/samba/smb.conf
+
+- name: mount point for smb client
+  file: path=/mmowgli/shared/images state=directory mode=0755
+
+- name: directories for smb to export to clients
+  file: path=/exports/mmowgli/{{ item }} state=directory
+  with_items:
+    - "{{ GAME_NAME }}"
+    - "reports/{{ GAME_NAME }}"
+    - src
+
+- name: start SMB service
+  service: name=smb state=started enabled=yes
+
+- name: open smb ports through firewall
+  lineinfile: 
+    dest        : /etc/ferm/ferm.conf
+    line        : 'proto {{ item }} ACCEPT;'
+    insertafter : '# Ansible specified rules.'
+  with_items:
+    - "tcp dport ({{ SMB_PORT3 }})"
+    - "udp dport ({{ SMB_PORT1 }})"
+    - "udp dport ({{ SMB_PORT2 }})"
+  notify: run ferm
+
+- name: mount shared filesystem
+  mount:  
+    name   : /mmowgli/shared/images
+    fstype : cifs
+    src    : //mmowgliserver/images
+    state  : mounted
+    opts   : "rw,username={{ SMB_USER }},password={{ SMB_PASSWORD }}"
+
+# NOTE: if this is the first run
+
+- name: get the mmowgli source code
+  subversion: 
+    repo: "{{ MMOWGLI_SOURCE }}" 
+    revision: "{{ MMOWGLI_REVISION }}"
+    dest: /exports/mmowgli/src/mmowgli2
+
+- name: initialize the database
+  shell: mysql -u root -p{{ MYSQL_ROOT_PASSWORD }} {{ GAME_NAME }} < /exports/mmowgli/src/mmowgli2/mmowgli_bootstrap.sql > /exports/mmowgli/{{ GAME_NAME }}/db_initialized
+  args: 
+    creates: /exports/mmowgli /{{ GAME_NAME }}/db_initialized
+
+- name: build the war file
+  shell: /usr/java/default/bin/jar cvf /exports/mmowgli/{{ GAME_NAME }}/mmowgli.war /exports/mmowgli/src/mmowgli2
+  args: 
+    creates:  /exports/mmowgli/{{ GAME_NAME }}/mmowgli.war
