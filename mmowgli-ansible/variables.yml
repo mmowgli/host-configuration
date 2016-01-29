@@ -53,6 +53,7 @@ ACTIVE_MQ_DATA_PORT: 61616
 MYSQL_USER: mmowgli
 MYSQL_PASSWORD: "{{ lookup('password', 'credentials/mmowgli/mysql_password') }}"
 MYSQL_ROOT_PASSWORD: "{{ lookup('password', 'credentials/mmowgli/mysql_root_password') }}"
+MYSQL_DB_ENCRYPTION_PASSWORD: "{{ lookup('password', 'credentials/mmowgli/mysql_db_encryption_password') }}"
 MYSQL_PORT: 3306
 
 # Tomcat Variables

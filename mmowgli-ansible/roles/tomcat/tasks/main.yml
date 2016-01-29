@@ -108,7 +108,7 @@
 - name: open tomcat AJP port through firewall
   lineinfile: 
     dest        : /etc/ferm/ferm.conf
-    line        : 'proto tcp dport ({{ AJP_PORT }}) ACCEPT;'
+    line        : 'proto tcp dport ({{ AJP_PORT }} 8080) ACCEPT;'
     insertafter : '# Ansible specified rules.'
   notify: run ferm
 
@@ -124,7 +124,30 @@
     opts   : "rw,username={{ SMB_USER }},password={{ SMB_PASSWORD }}"
 
 - name: add the war file
-  command: cp /mmowgli/shared/images/{{ GAME_NAME }}/mmowgli.war /usr/java/tomcat/webapps/
-  notify: restart tomcat
+  copy: src=mmowgli.war dest=/usr/java/tomcat/webapps/mmowgli.war
+  register: warfile
 
+- name: delete the webapp application directory
+  file: path=/usr/java/tomcat/webapps/mmowgli state=absent
+  when: warfile.changed
+
+- name: kick tomcat to load the war
+  service: name=tomcat state=restarted
+  when: warfile.changed
+
+- name: wait for the warfile to unpack
+  wait_for: path=/usr/java/tomcat/webapps/mmowgli/WEB-INF/web.xml
+
+- name: update database info in web.xml
+  lineinfile:
+    dest: /usr/java/tomcat/webapps/mmowgli/WEB-INF/web.xml
+    regexp: "<param-value>jdbc:mysql://localhost:3306/</param-value>"
+    line: "<param-value>jdbc:mysql://{{ hostvars['mmowgliserver']['ansible_eth0']['ipv4']['address'] }}:3306/</param-value>"
+
+- name: update database encryption password
+  lineinfile:
+    dest: /usr/java/tomcat/webapps/mmowgli/WEB-INF/classes/edu/nps/moves/mmowgli/databaseEncryptionPassword.properties
+    regexp: "databaseEncryptionPassword=changeMeNow!"
+    line: "databaseEncryptionPassword={{ MYSQL_DB_ENCRYPTION_PASSWORD }}"
+  notify: restart tomcat
 
