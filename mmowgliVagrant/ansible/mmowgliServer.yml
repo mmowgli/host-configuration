@@ -10,8 +10,8 @@
       JDK_URL: http://download.oracle.com/otn-pub/java/jdk/8u65-b17/jdk-8u65-linux-x64.tar.gz
       JDK_VERSION: jdk1.8.0_65
       JCE_URL: http://download.oracle.com/otn-pub/java/jce/8/jce_policy-8.zip
-      ZOOKEEPER_URL: http://apache.mirrorcatalogs.com/zookeeper/zookeeper-3.4.7/zookeeper-3.4.7.tar.gz
-      ZOOKEEPER_VERSION: zookeeper-3.4.7
+      ZOOKEEPER_URL: http://apache.cs.utah.edu/zookeeper/zookeeper-3.4.6/zookeeper-3.4.6.tar.gz
+      ZOOKEEPER_VERSION: zookeeper-3.4.6
       ZOOKEEPER_PORT: 2181
       ZOOKEEPER_UID: 510
       ZOOKEEPER_GUID: 510
@@ -45,7 +45,10 @@
       
       
   tasks:
-      
+     
+    - name: create /usr/java directory
+      file: path=/usr/java state=directory
+ 
     - name: get jdk
       command: "wget --no-check-certificate --no-cookies --header 'Cookie: oraclelicense=accept-securebackup-cookie' {{ JDK_URL }} -O /tmp/jdk1.8.tar.gz"
 
