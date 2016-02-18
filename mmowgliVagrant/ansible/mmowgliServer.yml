@@ -255,6 +255,13 @@
       
     - name: mount shared filesystem
       mount: name=/mmowgli/shared/images fstype=cifs src=//mmowgliServer/images state=mounted opts="rw,username={{ SMB_USER }},password={{ SMB_USER_PASSWORD }}"
+
+    # Game deployment scripts
+    - name: war file deployment
+      file: path=/root/deployGame state=directory
+
+    
+
       
   # Handlers run once and only once when notified by N tasks
   handlers:

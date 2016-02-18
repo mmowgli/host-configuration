@@ -20,6 +20,23 @@
        # There are better ways to handle passwords in ansible
       SMB_USER: mmowgli
       SMB_USER_PASSWORD: mmowgli
+      DB_SERVER_NAME: mmowgliServer.rci.montana.edu
+      WAR_FILE_URL: http://movesinstitute.org/~mcgredo/mmwogli.war
+      
+      # Used as a key for encrypting PII in the database. The tomcat servers need
+      # this to decrypt data
+      DATABASE_ENCRYPTION_PASSWORD: mmowgli
+      
+      # Database user the tomcats connect as
+      DATABASE_NAME: mmowgli
+      DATABASE_USER_NAME: mmowgli
+      DATABASE_PASSWORD: gwtservelet
+      
+      # Mail server
+      MAIL_SERVER: mule.nps.edu
+      
+       
+      
       
   tasks:
       
@@ -115,6 +132,45 @@
       
       - name: mount shared filesystem
         mount: name=/mmowgli/shared/images fstype=cifs src=//mmowgliServer/images state=mounted opts="rw,username={{ SMB_USER }},password={{ SMB_USER_PASSWORD }}"
+      
+      ## A series of excessively complex tasks to modify the contents of the
+      ## war file to get to an OK state.
+      - name: get a plausible war file in preparation for modifying it
+        get_url: url={{WAR_FILE_URL}} dest=/tmp
+      
+      - name: working directory for fiddling with the war file
+        file: path=/tmp/mmowgli state=directory 
+        
+      - name: copy war file to working directory
+        copy: src=/tmp/mmowgli.war dest=/tmp/mmowgli/mmowgli.war
+        
+      - name: Unarchive war file in preparation for diddling with the contents
+        unarchive: src=/tmp/mmowgli/mmowgli.war dest=/tmp/mmowgli
+        
+      - name: Delete mmowgli.war file 
+        file: path=/tmp/mmowgli/mmowgli.war state=absent
+        
+      # Use templating to set the db encryption pw 
+      - name: set database encryption password properties file
+        template: src=/templates/databaseEncryptionPassword.properties.jn2 dest=/tmp/mmowgli/WEB-INF/classes/edu/nps/moves/mmowgli/databaseEncryptionPassword.properties
+        
+      - name: Template web.xml file
+        template: src=/templates/web.xml.jn2 dest=/tmp/mmowgli/WEB_INF/web.xml
+       
+      - name: re-pack war file
+        shell: cd /tmp/mmowgli; zip -r mmowgli.war .;
+       
+      - name: Stop tomcat
+        service: name=tomcat state=stopped
+        
+      - name: remove any files in webapps dir
+        shell: rm -rf /usr/java/{{TOMCAT_VERSION}}/webapps/*
+        
+      - name: copy war file to tomcat webapps directory
+        shell: cp /temp/mmowgli/mmowgli.war /usr/java/{{TOMCAT_VERSION}}/webapps
+       
+      - name: Start tomcat
+        service: name=tomcat state=started
       
       # Handlers run once and only once when notified by N tasks
   handlers:
