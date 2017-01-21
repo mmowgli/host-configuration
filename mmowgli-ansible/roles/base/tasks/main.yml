@@ -4,21 +4,21 @@
 # create hosts file
 # Idempotent way to build a /etc/hosts file with Ansible using your Ansible hosts inventory for a source.
 # Will include all hosts the playbook is run on.
-- name: "Build hosts file"
-  lineinfile: 
-    dest   : /etc/hosts
-    regexp : '.*{{ item }}$'
-    line   : "{{ hostvars[item]['ansible_eth0']['ipv4']['address'] }} {{item}}"
-    state  : present
-  with_items: groups.all
+#- name: "Build hosts file"
+#  lineinfile: 
+#    dest   : /etc/hosts
+#    regexp : '.*{{ item }}$'
+#    line   : "{{ hostvars[item]['ansible_eth0']['ipv4']['address'] }} {{item}}"
+#    state  : present
+#  with_items: groups.all
 
-# Install epel and remi repositories. Remi is needed for more
-# recent versions of mysql.
-- name: install epel and remi repos
+# Install epel and remi repositories. mysql rpms from the community edition
+- name: install mysql, epel and remi repos
   yum: name={{ item }} state=present
   with_items:
     - "{{EPEL_REPO_URL}}"
     - "{{REMI_REPO_URL}}"
+    - "{{MYSQL_REPO_URL}}"
 
 # Install base packages, those that should be present on all hosts
 # ferm is a tool for managing iptables, libselinux for selinux
@@ -26,6 +26,7 @@
   yum: pkg={{ item }} state=installed
   with_items:
       - clamav
+      - git
       - fail2ban
       - samba
       - samba-client

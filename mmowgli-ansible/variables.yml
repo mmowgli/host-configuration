@@ -7,18 +7,19 @@ MMOWGLI_REVISION: "5116"
 
 # Repository Information
 EPEL_REPO_URL: https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm
+MYSQL_REPO_URL: https://dev.mysql.com/get/mysql57-community-release-el6-9.noarch.rpm
 REMI_REPO_URL: http://rpms.remirepo.net/enterprise/remi-release-6.rpm
 
 # Network Time Protocol Server
 NTP_SERVER: time.nps.edu
 
 # Need consistent UID and GID for shared filesystem
-MMOWGLI_USER: mmowgli
-MMOWGLI_UID: 503
-MMOWGLI_GUID: 503
+MMOWGLI_USER: mmow
+MMOWGLI_UID: 550
+MMOWGLI_GUID: 550
 
 # Samba variables
-SMB_USER: mmowgli
+SMB_USER: mmow
 SMB_PASSWORD: "{{ lookup('password', 'credentials/mmowgli/smb_password') }}"
 # UDP ports
 SMB_PORT1: 137
@@ -28,15 +29,22 @@ SMB_PORT3: 139
 # The directory we share with tomcats and the front-end web server
 SMB_EXPORT_DIRECTORY: /exports/mmowgli
 
-# Java-related variables
-JDK_URL: http://download.oracle.com/otn-pub/java/jdk/8u65-b17/jdk-8u65-linux-x64.tar.gz
-JDK_VERSION: jdk1.8.0_65
+# Java-related variables. These change frequently as new releases of Java hit. The checksum
+# is linked off the JDK download page at 
+# http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
+# JCE is java crypto extensions.
+JDK_URL: http://download.oracle.com/otn-pub/java/jdk/8u121-b13/e9e7ea248e2c4826b92b3f075a80e441/jdk-8u121-linux-x64.tar.gz
+JDK_VERSION: jdk1.8.0_121
+JDK_CHECKSUM: 91972fb4e753f1b6674c2b952d974320
 JCE_URL: http://download.oracle.com/otn-pub/java/jce/8/jce_policy-8.zip
+
+# This is in the Tomcat conf/server.xml file; a way to uniquely identify each
+# tomcat
 JVM_ROUTE: "{{ ansible_hostname }}"
 
 # Zookeeper Variables
-ZOOKEEPER_URL: http://apache.mirrorcatalogs.com/zookeeper/zookeeper-3.4.7/zookeeper-3.4.7.tar.gz
-ZOOKEEPER_VERSION: zookeeper-3.4.7
+ZOOKEEPER_URL: http://apache.claz.org/zookeeper/zookeeper-3.4.9/zookeeper-3.4.9.tar.gz
+ZOOKEEPER_VERSION: zookeeper-3.4.9
 ZOOKEEPER_PORT: 2181
 ZOOKEEPER_UID: 510
 ZOOKEEPER_GUID: 510
@@ -49,16 +57,37 @@ ACTIVE_MQ_DATA_PORT: 61616
 
 # Mysql passwords. MYSQL_USER and MYSQL_PASSWORD are the uname and pw
 # used by the application to contact the database. MYSQL_ROOT_PASSWORD
-# is the root password for mysql.
+# is the root password for mysql. The 5.7 community edition of mysql used
+# here has annoying properties: it assignes a random root password on
+# install. It's in the /var/log/mysqld.log file, but it's simpler to
+# just reset it to a known value. That requires shutting it down, restarting
+# it with mysqld_safe, running a SQL script that sets the password, and
+# then restarting it. What's more, the password must meet at least the
+# default complexity requirements of the password policy plugin. For 5.7
+# currently that's at least 10 characters, with at least one upper case,
+# one number, and one special character. If the password you supply here
+# doesn't meet those requirements the pw reset will fail.
+#
+# It would be better to use vault here. 
+# "{{ lookup('password', 'credentials/mmowgli/mysql_root_password') }}"
+# works, but that's another randomly generated pw, and it might not match
+# the complexity requirements of mysql.
+# The MYSQL_DB_ENCRYPTION_PASSWORD is the pw used to encrypt PII
+# in the database. MMOWGLI_PASSWORD is the pw for the user the
+# application connects as, and MMOWGLI is the database user the
+# app connects as.
+ 
 MYSQL_USER: mmowgli
 MYSQL_PASSWORD: "{{ lookup('password', 'credentials/mmowgli/mysql_password') }}"
-MYSQL_ROOT_PASSWORD: "{{ lookup('password', 'credentials/mmowgli/mysql_root_password') }}"
-MYSQL_DB_ENCRYPTION_PASSWORD: "{{ lookup('password', 'credentials/mmowgli/mysql_db_encryption_password') }}"
+#MYSQL_ROOT_PASSWORD: "{{ lookup('password', 'credentials/mmowgli/mysql_root_password') }}"
+MYSQL_ROOT_PASSWORD: "MMOWGLI2mmowgli8,17"
+#MYSQL_DB_ENCRYPTION_PASSWORD: "{{ lookup('password', 'credentials/mmowgli/mysql_db_encryption_password') }}"
+MYSQL_DB_ENCRYPTION_PASSWORD: "TheQuickBrown23Fox"
 MYSQL_PORT: 3306
 
-# Tomcat Variables
-TOMCAT_URL: http://apache.mesi.com.ar/tomcat/tomcat-7/v7.0.67/bin/apache-tomcat-7.0.67.tar.gz
-TOMCAT_VERSION: apache-tomcat-7.0.67
+# Tomcat Variables. The tomcat URL can change easily
+TOMCAT_URL: http://apache.claz.org/tomcat/tomcat-8/v8.5.11/bin/apache-tomcat-8.5.11.tar.gz
+TOMCAT_VERSION: apache-tomcat-8.5.11
 AJP_PORT: 8009
 TOMCAT_UID: 501
 TOMCAT_GUID: 501
