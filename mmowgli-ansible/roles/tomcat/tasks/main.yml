@@ -37,14 +37,18 @@
     headers: "Cookie: oraclelicense=accept-securebackup-cookie"
     validate_certs: no
     dest: /tmp/{{ JDK_VERSION }}.tar.gz
-    checksum: md5:196880a42c45ec9ab2f00868d69619c0
+    checksum: md5:{{ JDK_CHECKSUM }}
+    register: jdk_downloaded
+  when: jdk_downloaded is undefined
 
+    
 - name: install JDK
-  unarchive: 
+  unarchive:
     src     : /tmp/{{ JDK_VERSION }}.tar.gz
     dest    : /usr/java
     copy    : no
     creates : "/usr/java/{{ JDK_VERSION }}"
+  when: jdk_installed is undefined
 
 - name: symlinks for jdk
   file: 
@@ -54,6 +58,7 @@
   with_items:
     - default
     - latest
+  when: jdk_installed is undefined
 
 - name: get java cryptography extensions
   get_url:
@@ -61,13 +66,15 @@
     headers: "Cookie: oraclelicense=accept-securebackup-cookie"
     validate_certs: no
     dest: /tmp/jce.zip
-    checksum: md5:b3c7031bc65c28c2340302065e7d00d3
+  when: jdk_installed is undefined
 
 - name: create dir to hold jce
   file: state=directory dest=/tmp/jce
+  when: jdk_installed is undefined
 
 - name: unzip java cryptography extensions
   unarchive: copy=no src=/tmp/jce.zip dest=/tmp/jce creates=/tmp/jce
+  when: jdk_installed is undefined
 
 - name: Copy jce jar files to destination
   command: cp /tmp/jce/UnlimitedJCEPolicyJDK8/{{ item }} /usr/java/default/jre/lib/security/{{ item }}
@@ -76,9 +83,13 @@
   with_items:
     - local_policy.jar
     - US_export_policy.jar
+  when: jdk_installed is undefined
 
 - name: set permissions on java directory
   file: path=/usr/java/{{ JDK_VERSION }} owner=root group=root state=directory recurse=yes
+  when: jdk_installed is undefined
+
+- set_fact: jdk_installed=true
 
 - name: Fetch and unpack tomcat
   unarchive: 
@@ -119,7 +130,8 @@
   mount: 
     name   : /mmowgli/shared/images
     fstype : cifs
-    src    : //{{ hostvars['mmowgliserver']['ansible_eth0']['ipv4']['address'] }}/images
+#    src    : //{{ hostvars['mmowgliserver']['ansible_eth0']['ipv4']['address'] }}/images
+    src     : //127.0.0.1/images
     state  : mounted
     opts   : "rw,username={{ SMB_USER }},password={{ SMB_PASSWORD }}"
 

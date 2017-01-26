@@ -50,7 +50,7 @@ ZOOKEEPER_UID: 510
 ZOOKEEPER_GUID: 510
 
 # ActiveMQ Variables
-ACTIVE_MQ_URL: http://apache.cs.utah.edu/activemq/5.13.0/apache-activemq-5.13.0-bin.tar.gz
+ACTIVE_MQ_URL: https://archive.apache.org/dist/activemq/5.13.0/apache-activemq-5.13.0-bin.tar.gz
 ACTIVE_MQ_VERSION: apache-activemq-5.13.0
 ACTIVE_MQ_MANAGEMENT_PORT: 8161
 ACTIVE_MQ_DATA_PORT: 61616
@@ -86,7 +86,7 @@ MYSQL_DB_ENCRYPTION_PASSWORD: "TheQuickBrown23Fox"
 MYSQL_PORT: 3306
 
 # Tomcat Variables. The tomcat URL can change easily
-TOMCAT_URL: http://apache.claz.org/tomcat/tomcat-8/v8.5.11/bin/apache-tomcat-8.5.11.tar.gz
+TOMCAT_URL: http://apache.mirrors.ionfish.org/tomcat/tomcat-8/v8.5.11/bin/apache-tomcat-8.5.11.tar.gz
 TOMCAT_VERSION: apache-tomcat-8.5.11
 AJP_PORT: 8009
 TOMCAT_UID: 501
