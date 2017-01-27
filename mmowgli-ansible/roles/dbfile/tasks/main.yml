@@ -155,19 +155,32 @@
 - name: create mmowgli application user for each tomcat and grant them privs on the database
   mysql_user: 
     name           : "{{ MYSQL_USER }}"
-    host           : "{{ item }}"
+    host           : "localhost"
     password       : "{{ MYSQL_PASSWORD }}"
     priv           : "{{ GAME_NAME }}.*:ALL"
     state          : present
   with_items:
       groups['tomcats']
 
-- name: open mysql port through firewall
-  lineinfile: 
-    dest        : /etc/ferm/ferm.conf
-    line        : 'proto tcp dport ({{ MYSQL_PORT }}) ACCEPT;'
-    insertafter : '# Ansible specified rules.'
-  notify: run ferm
+- name: retrieve the template database
+  get_url: url="https://movesinstitute.org/~jmbailey/V2/MmowgliV2.sql" dest=/tmp/MmowgliV2.sql validate_certs="no"
+
+# The template file doesn't specify which database to use. We write a file to do that.
+- name: template for use database
+  template: src=useDatabase.sql dest=/tmp/useDatabase.sql
+
+- name: load the template database
+  shell: cat /tmp/useDatabase.sql /tmp/MmowgliV2.sql | /usr/bin/mysql -u root
+  ignore_errors: yes
+
+
+
+#- name: open mysql port through firewall
+#  lineinfile: 
+#    dest        : /etc/ferm/ferm.conf
+#    line        : 'proto tcp dport ({{ MYSQL_PORT }}) ACCEPT;'
+#    insertafter : '# Ansible specified rules.'
+#  notify: run ferm
 
 # Install apache-mq. 
 
@@ -212,52 +225,52 @@
 - name: SMB server configuration file
   template: src=smb.conf.jn2 dest=/etc/samba/smb.conf
 
-- name: mount point for smb client
-  file: path=/mmowgli/shared/images state=directory mode=0755
+#- name: mount point for smb client
+#  file: path=/mmowgli/shared/images state=directory mode=0755
 
-- name: directories for smb to export to clients
-  file: path=/exports/mmowgli/{{ item }} state=directory
-  with_items:
-    - "{{ GAME_NAME }}"
-    - "reports/{{ GAME_NAME }}"
-    - src
+#- name: directories for smb to export to clients
+#  file: path=/exports/mmowgli/{{ item }} state=directory
+#  with_items:
+#    - "{{ GAME_NAME }}"
+#    - "reports/{{ GAME_NAME }}"
+#    - src
 
-- name: start SMB service
-  service: name=smb state=started enabled=yes
+#- name: start SMB service
+#  service: name=smb state=started enabled=yes
 
-- name: open smb ports through firewall
-  lineinfile: 
-    dest        : /etc/ferm/ferm.conf
-    line        : 'proto {{ item }} ACCEPT;'
-    insertafter : '# Ansible specified rules.'
-  with_items:
-    - "tcp dport ({{ SMB_PORT3 }})"
-    - "udp dport ({{ SMB_PORT1 }})"
-    - "udp dport ({{ SMB_PORT2 }})"
-  notify: run ferm
+#- name: open smb ports through firewall
+#  lineinfile: 
+#    dest        : /etc/ferm/ferm.conf
+#    line        : 'proto {{ item }} ACCEPT;'
+#    insertafter : '# Ansible specified rules.'
+#  with_items:
+#    - "tcp dport ({{ SMB_PORT3 }})"
+#    - "udp dport ({{ SMB_PORT1 }})"
+#    - "udp dport ({{ SMB_PORT2 }})"
+#  notify: run ferm
 
-- name: mount shared filesystem
-  mount:  
-    name   : /mmowgli/shared/images
-    fstype : cifs
-    src    : //mmowgliserver/images
-    state  : mounted
-    opts   : "rw,username={{ SMB_USER }},password={{ SMB_PASSWORD }}"
+#- name: mount shared filesystem
+#  mount:  
+#    name   : /mmowgli/shared/images
+#    fstype : cifs
+#    src    : //mmowgliserver/images
+#    state  : mounted
+#    opts   : "rw,username={{ SMB_USER }},password={{ SMB_PASSWORD }}"
 
 # NOTE: if this is the first run
 
-- name: get the mmowgli source code
-  subversion: 
-    repo: "{{ MMOWGLI_SOURCE }}" 
-    revision: "{{ MMOWGLI_REVISION }}"
-    dest: /exports/mmowgli/src/mmowgli2
+#- name: get the mmowgli source code
+#  subversion: 
+#    repo: "{{ MMOWGLI_SOURCE }}" 
+#    revision: "{{ MMOWGLI_REVISION }}"
+#    dest: /exports/mmowgli/src/mmowgli2
 
-- name: initialize the database
-  shell: mysql -u root -p{{ MYSQL_ROOT_PASSWORD }} {{ GAME_NAME }} < /exports/mmowgli/src/mmowgli2/mmowgli_bootstrap.sql > /exports/mmowgli/{{ GAME_NAME }}/db_initialized
-  args: 
-    creates: /exports/mmowgli /{{ GAME_NAME }}/db_initialized
+#- name: initialize the database
+#  shell: mysql -u root -p{{ MYSQL_ROOT_PASSWORD }} {{ GAME_NAME }} < /exports/mmowgli/src/mmowgli2/mmowgli_bootstrap.sql > /exports/mmowgli/{{ GAME_NAME }}/db_initialized
+#  args: 
+#    creates: /exports/mmowgli /{{ GAME_NAME }}/db_initialized
 
-- name: build the war file
-  shell: /usr/java/default/bin/jar cvf /exports/mmowgli/{{ GAME_NAME }}/mmowgli.war /exports/mmowgli/src/mmowgli2
-  args: 
-    creates:  /exports/mmowgli/{{ GAME_NAME }}/mmowgli.war
+#- name: build the war file
+#  shell: /usr/java/default/bin/jar cvf /exports/mmowgli/{{ GAME_NAME }}/mmowgli.war /exports/mmowgli/src/mmowgli2
+#  args: 
+#    creates:  /exports/mmowgli/{{ GAME_NAME }}/mmowgli.war

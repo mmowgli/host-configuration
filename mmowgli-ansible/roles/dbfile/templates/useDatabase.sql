@@ -1,0 +1,1 @@
+use {{ GAME_NAME }}; 

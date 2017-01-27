@@ -25,28 +25,32 @@
           insertafter='# Ansible specified rules.'
   notify: run ferm
 
-- name: smb credentials file
-  template: src=smb-credentials.txt.jn2 dest=/etc/smb-credentials.txt
+#- name: smb credentials file
+#  template: src=smb-credentials.txt.jn2 dest=/etc/smb-credentials.txt
 
 - name: make directory for game content
   file: path=/var/www/html/{{ GAME_NAME }} owner=apache group=apache state=directory
 
-- name: mount point for smb
+- name: images dir
   file: path=/mmowgli/shared/images state=directory mode=0755
 
-- name: mount shared filesystem
-  mount: 
-    name   : /mmowgli/shared/images
-    fstype : cifs
-    src    : //mmowgliServer/images
-    state  : mounted
-    opts   : "ro,username={{ SMB_USER }},password={{ SMB_PASSWORD }}"
+- name: reports dir
+  file: path=/mmowgli/shared/reports state=directory mode=0755
+
+
+#- name: mount shared filesystem
+#  mount: 
+#    name   : /mmowgli/shared/images
+#    fstype : cifs
+#    src    : //mmowgliServer/images
+#    state  : mounted
+#    opts   : "ro,username={{ SMB_USER }},password={{ SMB_PASSWORD }}"
 
 - name: symlink from http directory to shared filesystem
-  file: name=/var/www/html/{{ GAME_NAME }}/images src=/mmowgli/shared/images/{{ GAME_NAME }} state=link
+  file: name=/var/www/html/{{ GAME_NAME }}/images src=/mmowgli/shared/images/ state=link
 
 - name: symlink from http directory to shared reports dir
-  file: name=/var/www/html/{{ GAME_NAME }}/reports src=/mmowgli/shared/images/reports/{{ GAME_NAME }} state=link
+  file: name=/var/www/html/{{ GAME_NAME }}/reports src=/mmowgli/shared/reports/ state=link
 
 - name: start and enable the httpd service
   service: name=httpd state=started enabled=yes

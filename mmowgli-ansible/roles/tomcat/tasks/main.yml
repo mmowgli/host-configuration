@@ -113,30 +113,36 @@
 - name: install init script
   template: src=tomcat.jn2 dest=/etc/init.d/tomcat mode=755 owner=root group=root
 
+- name: get war file for mmowgli
+  get_url:
+    url: https://movesinstitute.org/~jmbailey/V2/MmowgliV2.war
+    dest: /tmp/{{ GAME_NAME }}.war
+    validate_certs: no
+
 - name: start tomcat
   service: state=started name=tomcat enabled=yes
 
-- name: open tomcat AJP port through firewall
-  lineinfile: 
-    dest        : /etc/ferm/ferm.conf
-    line        : 'proto tcp dport ({{ AJP_PORT }} 8080) ACCEPT;'
-    insertafter : '# Ansible specified rules.'
-  notify: run ferm
+#- name: open tomcat AJP port through firewall
+#  lineinfile: 
+#    dest        : /etc/ferm/ferm.conf
+#    line        : 'proto tcp dport ({{ AJP_PORT }} 8080) ACCEPT;'
+#    insertafter : '# Ansible specified rules.'
+#  notify: run ferm
 
-- name: mount point for smb
-  file: path=/mmowgli/shared/images state=directory mode=0755
+#- name: mount point for smb
+#  file: path=/mmowgli/shared/images state=directory mode=0755
 
-- name: mount shared filesystem
-  mount: 
-    name   : /mmowgli/shared/images
-    fstype : cifs
+#- name: mount shared filesystem
+#  mount: 
+#    name   : /mmowgli/shared/images
+#    fstype : cifs
 #    src    : //{{ hostvars['mmowgliserver']['ansible_eth0']['ipv4']['address'] }}/images
-    src     : //127.0.0.1/images
-    state  : mounted
-    opts   : "rw,username={{ SMB_USER }},password={{ SMB_PASSWORD }}"
+#    src     : //127.0.0.1/images
+#    state  : mounted
+#    opts   : "rw,username={{ SMB_USER }},password={{ SMB_PASSWORD }}"
 
 - name: add the war file
-  copy: src=mmowgli.war dest=/usr/java/tomcat/webapps/mmowgli.war
+  copy: src="/tmp/{{ GAME_NAME }}.war" dest=/usr/java/tomcat/webapps/{{ GAME_NAME }}.war
   register: warfile
 
 - name: delete the webapp application directory
@@ -150,16 +156,17 @@
 - name: wait for the warfile to unpack
   wait_for: path=/usr/java/tomcat/webapps/mmowgli/WEB-INF/web.xml
 
-- name: update database info in web.xml
-  lineinfile:
-    dest: /usr/java/tomcat/webapps/mmowgli/WEB-INF/web.xml
-    regexp: "<param-value>jdbc:mysql://localhost:3306/</param-value>"
-    line: "<param-value>jdbc:mysql://{{ hostvars['mmowgliserver']['ansible_eth0']['ipv4']['address'] }}:3306/</param-value>"
+#- name: update database info in web.xml
+#  lineinfile:
+#    dest: /usr/java/tomcat/webapps/mmowgli/WEB-INF/web.xml
+#    regexp: "<param-value>jdbc:mysql://localhost:3306/</param-value>"
+#    line: "<param-value>jdbc:mysql://localhost:3306/<param-value>"
+#    #line: "<param-value>jdbc:mysql://{{ hostvars['mmowgliserver']['ansible_eth0']['ipv4']['address'] }}:3306/</param-value>"
 
-- name: update database encryption password
-  lineinfile:
-    dest: /usr/java/tomcat/webapps/mmowgli/WEB-INF/classes/edu/nps/moves/mmowgli/databaseEncryptionPassword.properties
-    regexp: "databaseEncryptionPassword=changeMeNow!"
-    line: "databaseEncryptionPassword={{ MYSQL_DB_ENCRYPTION_PASSWORD }}"
-  notify: restart tomcat
+#- name: update database encryption password
+#  lineinfile:
+#    dest: /usr/java/tomcat/webapps/mmowgli/WEB-INF/classes/edu/nps/moves/mmowgli/databaseEncryptionPassword.properties
+#    regexp: "databaseEncryptionPassword=changeMeNow!"
+#    line: "databaseEncryptionPassword={{ MYSQL_DB_ENCRYPTION_PASSWORD }}"
+#  notify: restart tomcat
 
