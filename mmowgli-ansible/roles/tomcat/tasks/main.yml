@@ -156,6 +156,11 @@
 - name: wait for the warfile to unpack
   wait_for: path=/usr/java/tomcat/webapps/mmowgli/WEB-INF/web.xml
 
+- name: replace web.xml
+  template: src=web.xml dest=/usr/java/{{ TOMCAT_VERSION }}/webapps/{{ GAME_NAME }}/WEB-INF/web.xml
+
+
+
 #- name: update database info in web.xml
 #  lineinfile:
 #    dest: /usr/java/tomcat/webapps/mmowgli/WEB-INF/web.xml

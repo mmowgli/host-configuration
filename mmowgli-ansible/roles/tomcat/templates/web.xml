@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://xmlns.jcp.org/xml/ns/javaee" xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd" version="3.1">
+  <display-name>MmowgliV2</display-name>
+  <welcome-file-list>
+    <welcome-file>index.html</welcome-file>
+    <welcome-file>index.htm</welcome-file>
+    <welcome-file>index.jsp</welcome-file>
+    <welcome-file>default.html</welcome-file>
+    <welcome-file>default.htm</welcome-file>
+    <welcome-file>default.jsp</welcome-file>
+  </welcome-file-list>
+  <context-param>
+    <description>IP location of mmowgli mysql server</description>
+    <param-name>dbUrl</param-name>
+    <param-value>jdbc:mysql://localhost/{{GAME_NAME}}?useLegacyDatetimeCode=false&amp;useSSL=false&amp;serverTimezone=GMT-8</param-value>
+    <!--  <param-value>jdbc:mysql://web4/test?useLegacyDatetimeCode=false&amp;useSSL=false&amp;serverTimezone=GMT-8</param-value>-->
+  </context-param>
+  <context-param>
+    <description>User account for access by the app code to the mysql server</description>
+    <param-name>dbUser</param-name>
+    <param-value>{{MYSQL_USER}}</param-value>
+  </context-param>
+  <context-param>
+    <description>Password for application user account on mysql server</description>
+    <param-name>dbPassword</param-name>
+    <param-value>{{MYSQL_PASSWORD}}</param-value>
+  </context-param>
+  <context-param>
+    <description>Where mmowgli sends emails to be delivered</description>
+    <param-name>smtpHost</param-name>
+    <param-value>127.0.0.1</param-value>
+    <!--  <param-value>mule.nps.edu</param-value>-->
+  </context-param>
+  <context-param>
+    <description>Where reports and uploads (images, videos) are stored</description>
+    <param-name>reportsAndUploadsDirectory</param-name>
+    <param-value>/Users/mike/Desktop/JavaMisc/MmowgliV2ReportsAndImages</param-value>
+    </context-param>
+</web-app>
